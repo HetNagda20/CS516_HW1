@@ -33,10 +33,16 @@
         <div class="navbar-nav me-auto">
           {{ render_nav_item('main.index', 'Home') }}
           {{ render_nav_item('main.explore', 'Explore') }}
-          <form class="d-flex" role="search" action="{{ url_for('main.search') }}">
-            <input class="form-control me-2" name="q" type="search" placeholder="Photo, tag or user" aria-label="Search" required>
+          <form class="d-flex" role="search" method="get" action="{{ url_for('main.search') }}">
+            <input class="form-control me-2" name="q" type="search" placeholder="Photo, tag, user, or label" aria-label="Search" required>
+            <select name="category" class="form-select me-2">
+              <option value="ml" selected>AI Labels</option>
+              <option value="photo">Photo (text)</option>
+              <option value="user">User</option>
+              <option value="tag">Tag</option>
+            </select>
             <button class="btn btn-light my-2 my-sm-0" type="submit">
-              {{ render_icon('search') }}
+          {{ render_icon('search') }}
             </button>
           </form>
         </div>

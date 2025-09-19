@@ -292,6 +292,11 @@ class Photo(db.Model):
     can_comment: Mapped[bool] = mapped_column(default=True)
     flag: Mapped[int] = mapped_column(default=0)
 
+    # --- ML accessibility/search fields ---
+    alt_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # manual or auto
+    alt_is_auto: Mapped[bool] = mapped_column(default=False)
+    auto_labels: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # CSV: "dog, beach, sky"
+
     author_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'))
 
     author: Mapped['User'] = relationship(back_populates='photos')
@@ -341,8 +346,8 @@ class Comment(db.Model):
     flag: Mapped[int] = mapped_column(default=0)
 
     replied_id: Mapped[Optional[int]] = mapped_column(ForeignKey('comment.id', ondelete='CASCADE'))
-    author_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'))
-    photo_id: Mapped[int] = mapped_column(ForeignKey('photo.id', ondelete='CASCADE'))
+    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'))
+    photo_id: Mapped[Optional[int]] = mapped_column(ForeignKey('photo.id', ondelete='CASCADE'))
 
     photo: Mapped['Photo'] = relationship(back_populates='comments')
     author: Mapped['User'] = relationship(back_populates='comments')
@@ -399,3 +404,39 @@ def delete_photos(**kwargs):
         path = current_app.config['MOMENTS_UPLOAD_PATH'] / filename
         if path.exists():  # not every filename map a unique file
             path.unlink()
+            
+@event.listens_for(Photo, "after_insert", named=True)
+def photo_after_insert(mapper, connection, target, **kwargs):
+    """Auto-fill alt_text/labels for new photos when user didn't provide alt."""
+    try:
+        if target.alt_text:  # user-supplied alt takes precedence
+            return
+
+        from flask import current_app
+        from moments.services.vision import describe_and_label
+
+        upload_dir = current_app.config["MOMENTS_UPLOAD_PATH"]
+        image_path = upload_dir / target.filename
+        if not image_path.exists():
+            return
+
+        caption, labels = describe_and_label(str(image_path))
+
+        updates = {}
+        if caption:
+            updates["alt_text"] = caption
+            updates["alt_is_auto"] = True
+        if labels:
+            csv = ", ".join(sorted({l.lower().strip() for l in labels if l}))
+            updates["auto_labels"] = csv
+
+        if updates:
+            photo_tbl = Photo.__table__
+            connection.execute(
+                photo_tbl.update().where(photo_tbl.c.id == target.id).values(**updates)
+            )
+    except Exception as e:
+        try:
+            current_app.logger.warning(f"Vision hook failed: {e}")
+        except Exception:
+            pass

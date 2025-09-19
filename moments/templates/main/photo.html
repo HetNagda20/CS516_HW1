@@ -9,9 +9,20 @@
 <div class="row">
   <div class="col-lg-8">
     <div class="photo">
-      <a href="{{ url_for('.get_image', filename=photo.filename) }}" target="_blank">
-        <img class="img-fluid" src="{{ url_for('.get_image', filename=photo.filename_m) }}">
+      <a
+        href="{{ url_for('.get_image', filename=photo.filename) }}"
+        target="_blank"
+        title="{{ photo.alt_text or 'image' }}"
+      >
+        <img
+          class="img-fluid"
+          src="{{ url_for('.get_image', filename=photo.filename_m) }}"
+          alt="{{ photo.alt_text or 'image' }}"
+        >
       </a>
+      {% if photo.alt_is_auto %}
+        <span class="badge text-bg-light border ms-1">Auto ALT</span>
+      {% endif %}
       <span class="photo-bottom"></span>
     </div>
     {% if current_user.is_authenticated %}

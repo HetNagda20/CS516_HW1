@@ -1,3 +1,11 @@
+
+import os
+try:
+    from dotenv import load_dotenv  
+    load_dotenv()  # loads .env in dev
+except Exception:
+    pass
+
 from flask import Flask
 
 from moments.blueprints.admin import admin_bp

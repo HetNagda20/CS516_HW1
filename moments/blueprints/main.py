@@ -2,7 +2,7 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.orm import with_parent
-
+from moments.services.vision import describe_and_label
 from moments.core.extensions import db
 from moments.decorators import confirm_required, permission_required
 from moments.forms.main import CommentForm, DescriptionForm, TagForm
@@ -49,7 +49,8 @@ def explore():
 
 @main_bp.route('/search')
 def search():
-    q = request.args.get('q').strip()
+    q_raw = request.args.get('q', '')
+    q = (q_raw or '').strip()
     if not q:
         flash('Enter keyword about photo, user or tag.', 'warning')
         return redirect_back()
@@ -57,15 +58,29 @@ def search():
     category = request.args.get('category', 'photo')
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config['MOMENTS_SEARCH_RESULT_PER_PAGE']
-    # TODO: add SQLAlchemy 2.x support to Flask-Whooshee then update the following code
+
+    # New: ML label search
+    if category == 'ml':
+        terms = [t.strip().lower() for t in q.replace(',', ' ').split() if t.strip()]
+        stmt = select(Photo)
+        for t in terms:
+            stmt = stmt.filter(Photo.auto_labels.ilike(f'%{t}%'))
+        stmt = stmt.order_by(Photo.created_at.desc())
+        pagination = db.paginate(stmt, page=page, per_page=per_page)
+        results = pagination.items
+        return render_template('main/search.html', q=q, results=results, pagination=pagination, category=category)
+
+    
     if category == 'user':
         pagination = User.query.whooshee_search(q).paginate(page=page, per_page=per_page)
     elif category == 'tag':
         pagination = Tag.query.whooshee_search(q).paginate(page=page, per_page=per_page)
     else:
         pagination = Photo.query.whooshee_search(q).paginate(page=page, per_page=per_page)
+
     results = pagination.items
     return render_template('main/search.html', q=q, results=results, pagination=pagination, category=category)
+
 
 
 @main_bp.route('/notifications')
@@ -130,15 +145,36 @@ def upload():
         if not validate_image(f.filename):
             return 'Invalid image.', 400
         filename = rename_image(f.filename)
-        f.save(current_app.config['MOMENTS_UPLOAD_PATH'] / filename)
+        # Save original
+        upload_path = current_app.config['MOMENTS_UPLOAD_PATH'] / filename
+        f.save(upload_path)
+        # Derivatives
         filename_s = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['small'])
         filename_m = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['medium'])
+
+        # Create the Photo record
         photo = Photo(
-            filename=filename, filename_s=filename_s, filename_m=filename_m, author=current_user._get_current_object()
+            filename=filename,
+            filename_s=filename_s,
+            filename_m=filename_m,
+            author=current_user._get_current_object()
         )
+
+        # --- ML: synchronous caption + labels (manual alt would override, but no field here) ---
+        try:
+            caption, labels = describe_and_label(str(upload_path))
+            if caption:
+                photo.alt_text = caption
+                photo.alt_is_auto = True
+            if labels:
+                photo.auto_labels = ", ".join(sorted({l.lower().strip() for l in labels if l}))
+        except Exception as e:
+            current_app.logger.warning(f"Vision API failed on upload: {e}")
+
         db.session.add(photo)
         db.session.commit()
     return render_template('main/upload.html')
+
 
 
 @main_bp.route('/photo/<int:photo_id>')
@@ -270,12 +306,22 @@ def edit_description(photo_id):
 
     form = DescriptionForm()
     if form.validate_on_submit():
-        photo.description = form.description.data
+        desc = (form.description.data or '').strip()
+        photo.description = desc
+
+        # Manual ALT override: user-provided description becomes the alt text.
+        if desc:
+            photo.alt_text = desc
+            photo.alt_is_auto = False
+        # (Optional) If description is cleared, keep the previous auto alt if present.
+        # Else branch intentionally does nothing so we don't erase a good auto alt.
+
         db.session.commit()
         flash('Description updated.', 'success')
 
     flash_errors(form)
     return redirect(url_for('.show_photo', photo_id=photo_id))
+
 
 
 @main_bp.route('/photo/<int:photo_id>/comment/new', methods=['POST'])
