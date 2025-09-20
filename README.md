@@ -34,7 +34,7 @@ VISION_API=azure
 VISION_KEY=<your_azure_vision_key>
 VISION_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com
 ```
-  1.  **If you don't have Azure API setup then follow this:** [Azure API Host Setup](#azure-api-host-setup-image-analysis)</br>
+**If you don't have Azure API setup then follow this:** [Azure API Host Setup](#azure-api-host-setup-image-analysis)</br>
 
 3) **Install dependencies**</br>
     Navigate to your project directory. 
