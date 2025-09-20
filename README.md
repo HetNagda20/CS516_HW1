@@ -15,7 +15,7 @@ This fork adds two ML features:
   - macOS: `brew install uv`
   - Windows: `winget install --id=astral-sh.uv -e`
   - Alt: `pip install uv`
-- Azure AI Vision (Computer Vision) resource with **Image Analysis 4.0 captions** enabled in 'US-East'.
+- Azure AI Vision (Computer Vision) resource with **Image Analysis 4.0 captions** enabled in **East US**.
 
 ---
 
@@ -59,7 +59,7 @@ uv add Faker
 email: admin@helloflask.com \
 password: moments
 
-Now you can run the app:
+6) **Now you can run the app:**
 ```shell
 uv run flask run
 ```
