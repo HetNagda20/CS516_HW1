@@ -5,8 +5,6 @@ This fork adds two ML features:
 - **Automatic ALT text** on image upload (Azure Image Analysis 4.0 — captions + tags)  
 - **Keyword search** over **AI-detected labels** (`/search?category=ml&q=...`)
 
-**Specific commit for grading:**  
-https://github.com/HetNagda20/CS516_HW1/commit/4fca22c837b3cdc37a525ad152fd4d4cbadbf2f0
 
 ---
 
