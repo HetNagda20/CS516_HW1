@@ -27,14 +27,14 @@ git clone git@github.com:HetNagda20/CS516_HW1.git
 cd CS516_HW1
 
 ```
-2) **Create `.env` in the root folder.(Do Not Commit)**
-   **If you don't have Azure API setup then follow this:** [Azure API Host Setup](#azure-api-host-setup-image-analysis)</br>
+2) **Create `.env` in the root folder and add the below API Credentials.(Do Not Commit)**
+  
 ```
 VISION_API=azure
 VISION_KEY=<your_azure_vision_key>
 VISION_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com
 ```
-  
+  1.  **If you don't have Azure API setup then follow this:** [Azure API Host Setup](#azure-api-host-setup-image-analysis)</br>
 
 3) **Install dependencies**</br>
     Navigate to your project directory. 
